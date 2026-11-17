@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#11151a"><title>밤의 파수꾼 · 10분 생존</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261117-mobile1">
 </head>
 <body>
 <main class="app">
@@ -11,12 +11,12 @@
 <section class="dashboard" aria-label="플레이 상태">
 <div class="vital"><div class="meter-label"><span>♥ 생명력</span><b id="healthText">100 / 100</b></div><div class="track health"><div id="healthFill"></div></div></div>
 <div class="vital experience"><div class="meter-label"><span id="level">LEVEL 01</span><b id="xpText">0 / 40 EXP</b></div><div class="track xp"><div id="xpFill"></div></div></div>
-<div class="stat time"><span>생존 시간</span><strong id="time">00:00</strong></div><div class="stat"><span>처치</span><strong id="kills">0</strong></div>
+<div class="stat time"><span>생존 시간</span><strong id="time">00:00</strong></div><div class="stat"><span>몬스터 처치</span><strong id="kills">0</strong></div>
 </section>
 <section class="arena" id="arena" aria-label="생존 게임">
 <canvas id="game" width="1100" height="650" aria-label="방향키 또는 WASD로 캐릭터를 이동하는 묘지 전장"></canvas>
 <div class="arena-tag"><span class="live-dot"></span> 잊힌 자들의 묘지 <span class="divider">/</span> 10:00 생존 <span class="divider">/</span> <span id="difficultyLabel">난이도 중</span></div>
-<div class="notice" id="notice" hidden></div>
+<div class="kill-counter"><span>MONSTERS SLAIN</span><strong id="arenaKills">0</strong><small>처치</small></div><div class="joystick" id="joystick" hidden><span id="joystickKnob"></span></div><div class="touch-hint" id="touchHint" hidden>화면을 누르고 드래그해 이동</div><div class="notice" id="notice" hidden></div>
 <div class="boss-bar" id="bossBar" hidden><span id="bossName"></span><div class="track"><div id="bossFill"></div></div></div>
 <div class="modal-layer" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
 <div class="modal-card" id="modalCard"></div>
@@ -24,10 +24,12 @@
 </section>
 <section class="loadout" aria-label="보유 무기"><div class="loadout-title"><span>ARSENAL</span><h2>나의 무기</h2><small id="weaponCount">1 / 8</small></div><div id="weapons" class="weapon-slots"></div></section>
 <section class="defense-loadout" aria-label="방어 아이템"><div class="loadout-title"><span>WARD & RELIC</span><h2>수호 장비</h2><small id="defenseCount">0 / 3</small></div><div id="defenses" class="defense-slots"></div><div class="defense-summary" id="defenseSummary"></div></section>
-<footer><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 방향키 이동 <i>·</i> 공격은 자동 <i>·</i> <kbd>SPACE</kbd> 일시정지</span><span>경험치를 모으고, 나만의 조합을 완성하세요.</span></footer>
+<footer><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 방향키 / 화면 드래그 이동 <i>·</i> 공격은 자동 <i>·</i> <kbd>SPACE</kbd> 일시정지</span><span>경험치를 모으고, 나만의 조합을 완성하세요.</span></footer>
 </main>
-<script src="engine.js"></script><script src="view.js"></script>
+<script src="engine.js?v=20261117-mobile1"></script><script src="controls.js?v=20261117-mobile1"></script><script src="view.js?v=20261117-mobile1"></script>
 </body></html>
+
+
 
 
 

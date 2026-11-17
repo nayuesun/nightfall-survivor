@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const canvas=$('game'),ctx=canvas.getContext('2d');
 const held=new Set();
 const hunterSprite=new Image();hunterSprite.src='assets/hunter.svg';
-let selectedDifficulty='normal';
+let selectedDifficulty='normal',selectedWeapon='dagger';
 let lastFrame=0,lastMode='',lastChoice='',lastLoadout='',lastDefense='',viewHeight=650,pixelScale=1;
 const formatTime=seconds=>`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
 const weaponById=id=>ITEMS.find(w=>w.id===id);
@@ -30,7 +30,7 @@ function resize(){
   canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
   pixelScale=canvas.width/1100;viewHeight=canvas.height/pixelScale;
 }
-window.addEventListener('resize',resize);resize();
+window.addEventListener('resize',resize);new ResizeObserver(resize).observe(document.getElementById('arena'));resize();
 
 // Paint the fixed graveyard once, then only copy the visible portion per frame.
 const ground=document.createElement('canvas');ground.width=WIDTH;ground.height=HEIGHT;
@@ -62,12 +62,12 @@ function shadow(x,y,r){ctx.fillStyle='#07100d66';ctx.beginPath();ctx.ellipse(x,y
 function drawPlayer(){
  const p=game.player;ctx.save();ctx.translate(p.x,p.y);
  if(p.invuln>0&&Math.floor(game.time*17)%2)ctx.globalAlpha=.42;
- shadow(0,4,22);
+ shadow(0,4,18);
  if(p.shieldReady){const halo=ctx.createRadialGradient(0,-12,10,0,-12,43);halo.addColorStop(0,'#84d7ea00');halo.addColorStop(1,'#84d7ea20');circle(0,-12,43,halo);ctx.strokeStyle='#a7e6ecaa';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(0,-12,35,44,0,0,Math.PI*2);ctx.stroke();ctx.save();ctx.translate(0,-12);ctx.rotate(game.time*.5);ctx.setLineDash([3,12]);ctx.beginPath();ctx.arc(0,0,47,0,Math.PI*2);ctx.stroke();ctx.restore();}
  if(game.defenses.armor){ctx.strokeStyle='#d8bd8277';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,15,24,9,0,0,Math.PI*2);ctx.stroke();}
  if(game.defenses.recovery){const a=game.time*1.5;circle(Math.cos(a)*30,-18+Math.sin(a)*22,2,'#b8edb0');circle(-Math.cos(a)*30,-18-Math.sin(a)*22,1.5,'#b8edb077');}
  const moving=p.moving&&game.mode==='playing';const phase=game.time*(moving?10:2);const bob=Math.sin(phase)*(moving?1.2:.35);
- ctx.save();ctx.scale(p.facing,1);ctx.translate(0,bob);
+ ctx.save();ctx.scale(p.facing*.8,.8);ctx.translate(0,bob);
  // An animated rear cape extends the static illustration without deforming armor.
  const wind=Math.sin(phase*.7)*3+(moving?3:0);
  const cloth=ctx.createLinearGradient(-17,-38,16,19);cloth.addColorStop(0,'#814355');cloth.addColorStop(1,'#291d2e');ctx.fillStyle=cloth;ctx.strokeStyle='#ac77715c';ctx.lineWidth=.6;
@@ -76,7 +76,7 @@ function drawPlayer(){
  else {ctx.fillStyle='#637a84';ctx.beginPath();ctx.moveTo(-11,-36);ctx.lineTo(11,-36);ctx.lineTo(15,12);ctx.lineTo(-15,12);ctx.fill();ctx.fillStyle='#223540';ctx.fillRect(-17,-48,34,5);}
  ctx.restore();
  // A small readable marker keeps the hero identifiable inside a crowd.
- ctx.fillStyle='#dbcba1';ctx.font='8px sans-serif';ctx.textAlign='center';ctx.fillText('루시안',0,30);
+ ctx.fillStyle='#dbcba1';ctx.font='8px sans-serif';ctx.textAlign='center';ctx.fillText('루시안',0,24);
  ctx.restore();
 }
 function drawEnemy(e){
@@ -135,6 +135,8 @@ function drawWorld(){
  const vignette=ctx.createRadialGradient(550,viewHeight/2,150,550,viewHeight/2,650);vignette.addColorStop(0,'#0b111300');vignette.addColorStop(1,'#07101699');ctx.fillStyle=vignette;ctx.fillRect(0,0,1100,viewHeight);
 }
 function renderHUD(){
+ if($('arenaKills').textContent!==String(game.kills))$('arenaKills').textContent=String(game.kills);
+ $('touchHint').hidden=game.mode!=='playing';
  $('difficultyLabel').textContent='난이도 '+DIFFICULTIES[game.mode==='ready'?selectedDifficulty:game.difficulty.id].name;
  $('healthText').textContent=`${Math.ceil(game.player.hp)} / ${game.player.maxHp}`;$('healthFill').style.width=`${game.player.hp/game.player.maxHp*100}%`;
  $('level').textContent=`LEVEL ${String(game.level).padStart(2,'0')}`;$('xpText').textContent=`${game.xp} / ${game.xpNeeded} EXP`;$('xpFill').style.width=`${game.xp/game.xpNeeded*100}%`;
@@ -162,22 +164,29 @@ function difficultyPicker(card){
   const button=document.createElement('button');button.type='button';button.className='difficulty-choice';button.dataset.difficulty=difficulty.id;
   button.setAttribute('aria-pressed',String(selectedDifficulty===difficulty.id));
   const subtitle={easy:'THE VIGIL',normal:'THE HUNT',hard:'THE RECKONING'}[difficulty.id];
-  button.innerHTML=`<span class="difficulty-rank">${'◆'.repeat(difficulty.health/2)}</span><strong>${difficulty.name}</strong><span class="difficulty-subtitle">${subtitle}</span><span>체력 ×${difficulty.health} · 등장 수 ×${difficulty.population}</span>`;
+  button.innerHTML=`<span class="difficulty-rank">${'◆'.repeat({easy:1,normal:2,hard:3}[difficulty.id])}</span><strong>${difficulty.name}</strong><span class="difficulty-subtitle">${subtitle}</span><span>체력 ×${difficulty.health} · 등장 수 ×${difficulty.population}</span>`;
   button.addEventListener('click',()=>{selectedDifficulty=difficulty.id;for(const other of picker.children)other.setAttribute('aria-pressed',String(other===button));});picker.append(button);
  }
  card.append(picker);
+}
+function startingWeaponPicker(card){
+ const section=document.createElement('section');section.className='starter-picker';section.setAttribute('aria-label','시작 무기 선택');
+ section.innerHTML='<div class="starter-title">STARTING WEAPON <span>시작 무기 선택 · 1단계</span></div><div class="starter-grid"></div><p class="starter-description"></p>';
+ const grid=section.querySelector('.starter-grid'),description=section.querySelector('.starter-description');
+ for(const item of WEAPONS){const button=document.createElement('button');button.type='button';button.className='starter-choice';button.dataset.starter=item.id;button.setAttribute('aria-pressed',String(selectedWeapon===item.id));button.innerHTML=`<span style="color:${item.color}">${itemIcon(item)}</span><strong>${item.name}</strong>`;button.addEventListener('click',()=>{selectedWeapon=item.id;for(const other of grid.children)other.setAttribute('aria-pressed',String(other===button));description.textContent=item.description;});grid.append(button);}
+ description.textContent=weaponById(selectedWeapon).description;card.append(section);
 }
 const crest='<svg viewBox="0 0 120 120" fill="none" aria-hidden="true"><circle cx="60" cy="60" r="48"/><circle cx="60" cy="60" r="40" stroke-dasharray="1 8"/><path d="m60 12 5 11-5 9-5-9Zm0 76 5 9-5 11-5-11ZM12 60l11-5 9 5-9 5Zm76 0 9-5 11 5-11 5Z"/><path d="m60 31 20 12v26L60 88 40 69V43Z M60 40v35 M49 53h22 M49 64h22"/></svg>';
 function renderModal(){
  const signature=`${game.mode}:${game.pendingLevels}:${game.choices.join(',')}`;
  if(signature===lastChoice&&game.mode===lastMode)return;
- const wasMode=lastMode;lastChoice=signature;lastMode=game.mode;held.clear();
+ const wasMode=lastMode;lastChoice=signature;lastMode=game.mode;held.clear();dragPad.reset();
  const modal=$('modal'),card=$('modalCard');modal.hidden=game.mode==='playing';if(modal.hidden){if(wasMode!=='playing')$('pause').blur();return;}
  card.dataset.screen=game.mode;card.replaceChildren();
  if(game.mode==='ready'){
   card.innerHTML=`<span class="modal-kicker">TEN MINUTES BETWEEN DARKNESS & DAWN</span><div class="hunter-portrait"><span class="portrait-ring"></span><img src="assets/hunter.svg" alt="은빛 갑옷과 붉은 망토를 입은 사냥꾼 루시안"></div><p class="chapter-label">LUCIAN · 새벽의 파수꾼</p><h2 id="modalTitle">밤이 끝날 때까지.</h2><p class="modal-description">어둠은 짙어지고, 망자들은 깨어납니다.<br>무기와 수호 장비를 조합해 마지막 군주를 쓰러뜨리세요.</p>`;
-  difficultyPicker(card);card.append(actionButton('밤 속으로 들어가기 →',()=>game.start(selectedDifficulty)));
-  card.insertAdjacentHTML('beforeend','<div class="start-notes"><span><b>Ⅰ · 이동</b>WASD / 방향키</span><span><b>Ⅱ · 성장</b>무기와 수호 장비 선택</span><span><b>Ⅲ · 생존</b>10분 후 최후의 전투</span></div>');
+  difficultyPicker(card);startingWeaponPicker(card);card.append(actionButton('밤 속으로 들어가기 →',()=>game.start(selectedDifficulty,selectedWeapon)));
+  card.insertAdjacentHTML('beforeend','<div class="start-notes"><span><b>Ⅰ · 이동</b>WASD / 방향키 / 드래그</span><span><b>Ⅱ · 성장</b>무기와 수호 장비 선택</span><span><b>Ⅲ · 생존</b>10분 후 최후의 전투</span></div>');
  }else if(game.mode==='levelup'){
   card.innerHTML=`<span class="modal-kicker">ASCENSION · LEVEL ${game.level}</span><h2 id="modalTitle">더 강해질 시간.</h2><p class="modal-description">공격을 강화할까요, 생존을 준비할까요? 하나를 선택하세요.${game.pendingLevels>1?` (선택 ${game.pendingLevels}회 남음)`:''}</p><div class="cards" id="choiceCards"></div>`;
   const choices=card.querySelector('.cards');
@@ -194,17 +203,21 @@ function renderModal(){
   const actions=document.createElement('div');actions.className='modal-actions';actions.append(actionButton('계속하기 →',()=>game.resume()),actionButton('↺ 처음부터 다시 시작',()=>game.requestRestart(),'secondary'));card.append(actions);
  }else if(game.mode==='restart'){
   card.innerHTML='<span class="modal-kicker">A NEW VIGIL</span><h2 id="modalTitle">새로운 밤을 시작할까요?</h2><p class="modal-description">현재 전투의 경험치와 장비는 초기화됩니다.<br>난이도를 고르고 처음부터 다시 시작하세요.</p>';
-  difficultyPicker(card);const actions=document.createElement('div');actions.className='modal-actions';actions.append(actionButton('처음부터 시작 →',()=>game.start(selectedDifficulty)),actionButton('현재 게임으로 돌아가기',cancelRestartMenu,'secondary'));card.append(actions);
+  difficultyPicker(card);startingWeaponPicker(card);const actions=document.createElement('div');actions.className='modal-actions';actions.append(actionButton('처음부터 시작 →',()=>game.start(selectedDifficulty,selectedWeapon)),actionButton('현재 게임으로 돌아가기',cancelRestartMenu,'secondary'));card.append(actions);
  }else{
   const won=game.mode==='won';
   card.innerHTML=`<span class="modal-kicker">${won?'THE DAWN IS YOURS':'THE NIGHT REMAINS'}</span><div class="hero-crest small">${crest}</div><h2 id="modalTitle">${won?'마침내, 새벽.':'아직 끝나지 않은 밤.'}</h2><p class="modal-description">${won?'밤의 군주를 쓰러뜨렸습니다. 당신이 묘지에 아침을 가져왔어요.':'쓰러졌지만, 다음 밤에는 더 강해질 수 있습니다.'}</p><div class="result-stats"><span><strong>${formatTime(game.time)}</strong>생존 시간</span><span><strong>${game.kills}</strong>처치 수</span><span><strong>${game.level}</strong>도달 레벨</span></div>`;
-  difficultyPicker(card);card.append(actionButton('새로운 밤 시작하기 →',()=>game.start(selectedDifficulty)));
+  difficultyPicker(card);startingWeaponPicker(card);card.append(actionButton('새로운 밤 시작하기 →',()=>game.start(selectedDifficulty,selectedWeapon)));
  }
  (card.querySelector('.primary')||card.querySelector('button'))?.focus({preventScroll:true});
 }
-function cancelRestartMenu(){selectedDifficulty=game.difficulty.id;game.cancelRestart();}
+function cancelRestartMenu(){selectedDifficulty=game.difficulty.id;selectedWeapon=game.startingWeapon;game.cancelRestart();}
 function togglePause(){if(game.mode==='restart'){cancelRestartMenu();return;}if(game.mode==='playing')game.pause();else if(game.mode==='paused')game.resume();}
 $('pause').addEventListener('click',togglePause);$('restart').addEventListener('click',()=>game.requestRestart());
+const dragPad=new NightfallInput.DragPad(canvas,()=>game.mode==='playing',pad=>{
+ const joystick=$('joystick');joystick.hidden=pad.pointerId===null;
+ if(pad.origin){const rect=canvas.getBoundingClientRect();joystick.style.left=`${pad.origin.x-rect.left}px`;joystick.style.top=`${pad.origin.y-rect.top}px`;$('joystickKnob').style.transform=`translate(${pad.offset.x}px,${pad.offset.y}px)`;}
+});
 const movement=['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'];
 document.addEventListener('keydown',event=>{
  const key=event.key.toLowerCase();
@@ -213,14 +226,17 @@ document.addEventListener('keydown',event=>{
  if((event.code==='Space'||key==='escape')&&!event.repeat){if(event.code==='Space'&&document.activeElement?.tagName==='BUTTON'&&!$('modal').hidden)return;event.preventDefault();togglePause();}
 });
 document.addEventListener('keyup',event=>held.delete(event.key.toLowerCase()));
-function suspend(){held.clear();game.pause();}
+function suspend(){held.clear();dragPad.reset();game.pause();}
 window.addEventListener('blur',suspend);document.addEventListener('visibilitychange',()=>{if(document.hidden)suspend();});
 function frame(timestamp){
  const dt=lastFrame?Math.min((timestamp-lastFrame)/1000,.05):0;lastFrame=timestamp;
- const x=Number(held.has('d')||held.has('arrowright'))-Number(held.has('a')||held.has('arrowleft'));
- const y=Number(held.has('s')||held.has('arrowdown'))-Number(held.has('w')||held.has('arrowup'));
+ const keyX=Number(held.has('d')||held.has('arrowright'))-Number(held.has('a')||held.has('arrowleft'));
+ const keyY=Number(held.has('s')||held.has('arrowdown'))-Number(held.has('w')||held.has('arrowup'));
+ const x=keyX||keyY?keyX:dragPad.vector.x,y=keyX||keyY?keyY:dragPad.vector.y;
  game.update(dt,{x,y});drawWorld();renderHUD();renderModal();requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+
 
 

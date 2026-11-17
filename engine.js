@@ -4,8 +4,8 @@
   const WIDTH = 2200, HEIGHT = 1500;
   const DIFFICULTIES = Object.freeze({
     easy: Object.freeze({id:'easy',name:'하',health:2,population:2}),
-    normal: Object.freeze({id:'normal',name:'중',health:4,population:4}),
-    hard: Object.freeze({id:'hard',name:'상',health:6,population:6})
+    normal: Object.freeze({id:'normal',name:'중',health:3.5,population:3.5}),
+    hard: Object.freeze({id:'hard',name:'상',health:5,population:5})
   });
   const WEAPONS = [
     {id:'dagger',name:'은빛 단검',icon:'🗡',color:'#e8dcb8',description:'가까운 적에게 빠르게 날아가는 단검',upgrade:'피해량과 발사 수 증가'},
@@ -26,18 +26,19 @@
   const dist2 = (a,b) => (a.x-b.x)**2+(a.y-b.y)**2;
   const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
   class Game {
-    constructor(random=Math.random) { this.random=random; this.difficulty=DIFFICULTIES.easy; this.reset(); this.mode='ready'; }
+    constructor(random=Math.random) { this.random=random; this.difficulty=DIFFICULTIES.easy; this.startingWeapon="dagger"; this.reset(); this.mode='ready'; }
     reset() {
-      this.player={x:WIDTH/2,y:HEIGHT/2,r:14,hp:100,maxHp:100,speed:205,invuln:0,facing:1,shieldReady:false,shieldCooldown:0};
+      this.player={x:WIDTH/2,y:HEIGHT/2,r:11,hp:100,maxHp:100,speed:205,invuln:0,facing:1,shieldReady:false,shieldCooldown:0};
       this.time=0;this.level=1;this.xp=0;this.kills=0;this.pendingLevels=0;
-      this.weapons={dagger:1};this.defenses={};this.previousMode=null;this.cooldowns={};this.enemies=[];this.projectiles=[];
+      this.weapons={[this.startingWeapon]:1};this.targets={};this.defenses={};this.previousMode=null;this.cooldowns={};this.enemies=[];this.projectiles=[];
       this.gems=[];this.chests=[];this.zones=[];this.effects=[];this.choices=[];
       this.reward=null;this.spawnClock=.4/this.difficulty.population;this.nextMini=60;this.finalSpawned=false;
       this.nextId=1;this.notice='';this.noticeUntil=0;
     }
-    start(difficulty=this.difficulty.id) {
+    start(difficulty=this.difficulty.id,startingWeapon=this.startingWeapon) {
       if(!Object.hasOwn(DIFFICULTIES,difficulty))throw new RangeError('Unknown difficulty');
-      this.difficulty=DIFFICULTIES[difficulty];this.reset();this.mode='playing';
+      if(!WEAPONS.some(w=>w.id===startingWeapon))throw new RangeError('Unknown starting weapon');
+      this.startingWeapon=startingWeapon;this.difficulty=DIFFICULTIES[difficulty];this.reset();this.mode='playing';
     }
     requestRestart() {
       if(!['playing','paused','levelup','chest'].includes(this.mode))return false;
@@ -115,6 +116,11 @@
       for(const e of this.enemies){if(e.dead)continue;const d=dist2(e,origin);if(d<bestDistance){best=e;bestDistance=d;}}
       return best;
     }
+    lockedTarget(id,range=700) {
+      const current=this.enemies.find(e=>e.id===this.targets[id]&&!e.dead&&dist2(e,this.player)<=range*range);
+      const target=current||this.nearest(this.player,range);
+      this.targets[id]=target?target.id:null;return target;
+    }
     damageEnemy(e,amount) {
       if(e.dead||this.mode!=='playing')return;
       e.hp-=amount;e.hitUntil=this.time+.09;
@@ -130,7 +136,7 @@
       for(const e of this.enemies){if(dist2(e,{x,y})<(r+e.r)**2)this.damageEnemy(e,damage);}
     }
     fire(id,level) {
-      const target=this.nearest();if(!target)return false;
+      const target=['dagger','magic','axe'].includes(id)?this.lockedTarget(id):this.nearest();if(!target)return false;
       const p=this.player;
       if(id==='lightning'){
         const candidates=this.enemies.filter(e=>!e.dead&&dist2(e,p)<550**2);
@@ -249,6 +255,7 @@
   const api={Game,WEAPONS,WIDTH,HEIGHT,DIFFICULTIES,DEFENSES,ITEMS};
   if(typeof module==='object'&&module.exports)module.exports=api;else root.Survivor=api;
 })(globalThis);
+
 
 
 
